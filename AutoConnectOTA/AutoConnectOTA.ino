@@ -26,6 +26,8 @@ const unsigned long DHT_reading_period = 5000;
 String apiKey = "MKOJFL0OMOXBNKU6";     //  Enter your Write API key from ThingSpeak
 const char* thingspeak_server = "api.thingspeak.com";
 // Global variables
+String host_name = "";
+String ip_addr = "";
 int humi = 100;
 int temp = 100;
 int tempf = 100;
@@ -186,7 +188,14 @@ void handleRoot() {
             } else {
               document.getElementById("humidifier_relay").style.display = "none";
             }
-
+            host_name_link = "<a style=\"color: inherit; text-decoration: inherit;\" href=\"http://" + objects.host_name + "\">" + objects.host_name + "</a>";
+            if (host_name_link != document.getElementById("host_name").innerHTML && objects.host_name != "") {
+              document.getElementById("host_name").innerHTML = host_name_link;
+            }
+            ip_link = "<a style=\"color: inherit; text-decoration: inherit;\" href=\"http://" + objects.ip_addr + "\">" + objects.ip_addr + "</a>";
+            if (ip_link != document.getElementById("ip_addr").innerHTML && objects.ip_addr != "") {
+              document.getElementById("ip_addr").innerHTML = ip_link;
+            }
           }
           xhttp.open("GET", "/data");
           xhttp.send();
@@ -289,7 +298,9 @@ void handleRoot() {
     <body>
       <div>
         <div class="status-card">
-          <span class="header">&sdot; Shop Office Monitor &sdot;</span>
+          <span class="header">
+            <span id="host_name"></span> (<span id="ip_addr"></span>)
+          </span>
         </div>
         <div class="status-card temphumi">
           <span class="details">Temperature</span>
@@ -350,7 +361,7 @@ void handleRoot() {
             </div>        
             <div id="stats" style="display:none;">
               <button class="close-btn" onclick="toggleStats();">X</button>
-              <span class="details">Statistics</span><br>
+              <span class="details">Statistics</span><br><br>
               <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1244891/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&title=Temperature%28F%29&type=line"></iframe>
               <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1244891/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&title=Humidity%28%25%29&type=line"></iframe>
               <br>
@@ -390,7 +401,11 @@ void sendData() {
   json_data += String(dehumidifier_relay);
   json_data += "\", \"humidifier_relay\":\"";
   json_data += String(humidifier_relay);
-  
+  json_data += "\", \"host_name\":\"";
+  json_data += String(host_name);
+  json_data += ".local";
+  json_data += "\", \"ip_addr\":\"";
+  json_data += String(ip_addr);  
   json_data += "\"}";
   server.send(200, "application/json", json_data);
 }
@@ -528,7 +543,15 @@ void setup() {
   ArduinoOTA.begin();
   Serial.println("Ready");
   Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  ip_addr = WiFi.localIP().toString();
+  host_name = WiFi.hostname();
+  Serial.println(ip_addr);
+  Serial.println(host_name + ".local");
+  if ( !MDNS.begin(host_name) ) {
+    Serial.println("Error starting MDNS");
+    // ESP.reset();
+    // delay(1000);
+  }
   dht.begin();
   startMillis = millis();  //initial start time
   server.on("/", one_page);
@@ -544,6 +567,7 @@ void loop() {
   // put your main code here, to run repeatedly:
   ArduinoOTA.handle();
   server.handleClient();
+  host_name = WiFi.hostname();
   MDNS.update();
   currentMillis = millis();  //get the current "time" (actually the number of milliseconds since the program started)
   if (currentMillis - startMillis >= thingspeak_reporting_period)  //test whether the period has elapsed
