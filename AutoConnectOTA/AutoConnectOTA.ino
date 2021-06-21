@@ -26,13 +26,17 @@ const unsigned long DHT_reading_period = 5000;
 String apiKey = "MKOJFL0OMOXBNKU6";     //  Enter your Write API key from ThingSpeak
 const char* thingspeak_server = "api.thingspeak.com";
 // Global variables
-float humi = 100;
-float temp = 100;
-float tempf = 100;
+int humi = 100;
+int temp = 100;
+int tempf = 100;
 int hi_temp = 60;
 int lo_temp = 40;
 int hi_humi = 80;
 int lo_humi = 50;
+bool ac_relay = false;
+bool heat_relay = false;
+bool dehumidifier_relay = false;
+bool humidifier_relay = false; 
 // Begin DHT and ESP webserver
 DHT dht(DHTPIN, DHTTYPE);
 ESP8266WebServer server(80);
@@ -70,11 +74,11 @@ bool read_DHT() {
 
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-  humi = dht.readHumidity();
+  humi = round(dht.readHumidity());
   // Read temperature as Celsius (the default)
-  temp = dht.readTemperature();
+  temp = round(dht.readTemperature());
   // Read temperature as Fahrenheit (isFahrenheit = true)
-  tempf = dht.readTemperature(true);
+  tempf = round(dht.readTemperature(true));
 
   // Check if any reads failed and exit early (to try again).
   if (isnan(humi) || isnan(temp) || isnan(tempf)) {
@@ -135,6 +139,7 @@ void handleRoot() {
           updateData();
           setTimeout(function() {
             document.getElementById("successMessage").innerHTML = "";
+            toggleSettings();
           }, 2000); // <-- time in milliseconds
         }
         function updateData() {
@@ -163,6 +168,27 @@ void handleRoot() {
               document.getElementById("lo_humi_setting").innerHTML = objects.lo_humi;
               document.getElementById("lo_humi").value = objects.lo_humi;
             }
+            if (objects.ac_relay == "1") { 
+              document.getElementById("ac_relay").style.display = "inline";
+            } else {
+              document.getElementById("ac_relay").style.display = "none";
+            }
+            if (objects.heat_relay == "1") {
+              document.getElementById("heat_relay").style.display = "inline";
+            } else {
+              document.getElementById("heat_relay").style.display = "none";
+            }
+            if (objects.dehumidifier_relay == "1") {
+              document.getElementById("dehumidifier_relay").style.display = "inline";
+            } else {
+              document.getElementById("dehumidifier_relay").style.display = "none";
+            }
+            if (objects.humidifier_relay == "1") {
+              document.getElementById("humidifier_relay").style.display = "inline";
+            } else {
+              document.getElementById("humidifier_relay").style.display = "none";
+            }
+
           }
           xhttp.open("GET", "/data");
           xhttp.send();
@@ -170,35 +196,161 @@ void handleRoot() {
         setInterval(function() {
           updateData(); // this will run after every 5 seconds
         }, 5000);
+        function toggleSettings() {
+          if (document.getElementById("settings").style.display == "none") {
+            document.getElementById("settings").style.display = "block";
+            document.getElementById("settings_button").style.display = "none";
+          } else {
+            document.getElementById("settings").style.display = "none";
+            document.getElementById("settings_button").style.display = "block";
+          }
+        }
+        function toggleStats() {
+          if (document.getElementById("stats").style.display == "none") {
+            document.getElementById("stats").style.display = "block";
+            document.getElementById("stats_button").style.display = "none";
+          } else {
+            document.getElementById("stats").style.display = "none";
+            document.getElementById("stats_button").style.display = "block";
+          }
+        }
         updateData(); // This will run on page load
       </script>
+      <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      .statusbar {
+        padding: 5px 5px 5px 5px;
+        margin: 5px 5px 5px 5px;
+        background-color: darkgray;
+        border-radius: 5px;
+        color: white;
+      }
+      .status-card {
+        margin: auto;
+        padding: 5px 5px 5px 5px;
+        margin: 5px 5px 5px 5px;
+        background-color: lightgray;
+        border: 1px gray;
+        border-radius: 5px;
+        text-align: center;
+      }
+      .btn {
+        width: 50%;
+        padding: 10px 10px 10px 10px;
+        margin: 10px 10px 10px 10px;
+        font-size: 20px;
+        font-style: bold;
+        border-color: lightgray;
+        color: gray;
+        border-radius: 5px;
+      }
+      input {
+        width: 50%;
+        padding: 10px 10px 10px 10px;
+        margin: 10px 10px 10px 10px;
+        font-size: 20px;
+        font-style: bold;
+      }
+      .btn:hover {
+        color: gray;
+        border-color: black;
+        border-radius: 5px;
+      }
+      .close-btn {
+        font-size: 25px;
+        float: right;
+        font-style: bold;
+      }
+      .val_input {
+        width: 50px;
+      }
+      .details {
+        font-style: italic;
+        font-size: 12px;
+        margin: 10px 10px 10px 10px;
+        color: gray;
+      }
+      h1 {
+        font-size: 60px;
+        margin: 10px 10px 10px 10px;
+        background-color: darkgray;
+        border-radius: 5px;
+        color: white;
+      }
+      </style>
     </head>
     <body>
       <div>
-        <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1244891/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&title=Temperature%28F%29&type=line"></iframe>
-        <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1244891/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&title=Humidity%28%25%29&type=line"></iframe>
+        <div class="status-card temphumi">
+          <span class="details">Temperature</span>
+          <h1><span id="current_temp"></span>&#8457;</h1>
+          <span class="details">High Setting: <span id="hi_temp_setting"></span>&#8457;</span>
+          <span class="details">Low Setting: <span id="lo_temp_setting"></span>&#8457;</span>
+        </div>
+        <div class="status-card temphumi">
+          <span class="details">Humidity</span>
+          <h1><span id="current_humi"></span>%</h1>
+          <span class="details">High Setting: <span id="hi_humi_setting"></span>%</span>
+          <span class="details">Low Setting: <span id="lo_humi_setting"></span>%</span>
+        </div>
+        <div class="status-card">
+          <span class="details">Status</span>
+          <p>
+            <span id="ac_relay" class="statusbar" style="display:none;">A/C</span>
+            <span id="heat_relay" class="statusbar" style="display:none;">HEAT</span>
+            <span id="dehumidifier_relay" class="statusbar" style="display:none;">DEHUMIDIFIER</span>
+            <span id="humidifier_relay" class="statusbar" style="display:none;">HUMIDIFIER</span>
+          </p>
+        </div>
+        <div class="status-card">
+          <div id="settings_button" style="display:block;">
+            <button class="btn" onclick="toggleSettings();">Settings</button>
+          </div>
+          <div id="settings" style="display:none;">
+            <button class="close-btn" onclick="toggleSettings();">X</button>
+            <span class="details">Settings</span>
+            <form action="" target="hidden-form">
+              <table style="width:100%;">
+                <tr>
+                  <td>High Temp Setting</td>
+                  <td><input id="hi_temp" type="number" class="val_input" name="hi_temp" maxlength="3"></td>
+                </tr>
+                <tr>
+                  <td>Low Temp Setting</td>
+                  <td><input id="lo_temp" type="number" class="val_input" name="lo_temp" maxlength="3"></td>
+                </tr>
+                <tr>
+                  <td>High Humidity Setting</td>
+                  <td><input id="hi_humi" type="number" class="val_input" name="hi_humi" maxlength="3"></td>
+                </tr>
+                <tr>
+                  <td>Low Humidity Setting</td> 
+                  <td><input id="lo_humi" type="number" class="val_input" name="lo_humi" maxlength="3"></td>
+                </tr>
+              </table>
+              <input type="submit" value="Submit" class="btn" onclick="submitMessage()">
+              <button class="btn" style="display:none;" onclick="toggleSettings();">Close Settings</button>
+              <div id="successMessage" style="background-color: lightblue;">
+              </div>
+            </form>
+            </div>
+          </div>
+          <div class="status-card">
+            <div id="stats_button" style="display:block;">
+              <button class="btn" onclick="toggleStats();">Statistics</button>
+            </div>        
+            <div id="stats" style="display:none;">
+              <button class="close-btn" onclick="toggleStats();">X</button>
+              <span class="details">Statistics</span><br>
+              <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1244891/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&title=Temperature%28F%29&type=line"></iframe>
+              <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1244891/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&title=Humidity%28%25%29&type=line"></iframe>
+              <br>
+              <button class="btn" style="display:none;" onclick="toggleStats();">Close Statistics</button>
+            </div>
+          </div>
       </div>
-      <div id="successMessage" style="background-color: green;">
-      </div>
-      <div>
-        <p>Temperature(F): <span id="current_temp"></span></p>
-        <p>Humidity(%): <span id="current_humi"></span></p>
-      </div>
-      <form action="" target="hidden-form">
-        HI Temp Setting (current value: <span id="hi_temp_setting"></span>): 
-        <input id="hi_temp" type="number" name="hi_temp">
-        <br>
-        LO Temp Setting (current value <span id="lo_temp_setting"></span>): 
-        <input id="lo_temp" type="number" name="lo_temp">
-        <br>
-        HI Humidity Setting (current value: <span id="hi_humi_setting"></span>): 
-        <input id="hi_humi" type="number" name="hi_humi">
-        <br>
-        LO Humidity Setting (current value: <span id="lo_humi_setting"></span>): 
-        <input id="lo_humi" type="number" name="lo_humi">
-        <br>
-        <input type="submit" value="Submit" onclick="submitMessage()">
-      </form>
       <iframe style="display:none" name="hidden-form">
       </iframe>
     </body>
@@ -222,6 +374,16 @@ void sendData() {
   json_data += String(hi_humi);
   json_data += "\", \"lo_humi\":\"";
   json_data += String(lo_humi);
+
+  json_data += "\", \"ac_relay\":\"";
+  json_data += String(ac_relay);
+  json_data += "\", \"heat_relay\":\"";
+  json_data += String(heat_relay);
+  json_data += "\", \"dehumidifier_relay\":\"";
+  json_data += String(dehumidifier_relay);
+  json_data += "\", \"humidifier_relay\":\"";
+  json_data += String(humidifier_relay);
+  
   json_data += "\"}";
   server.send(200, "application/json", json_data);
 }
@@ -267,6 +429,29 @@ void getParams() {
       lo_humi = server.arg(i).toInt();
       EEPROM.write(4, server.arg(i).toInt());
     }    
+  }
+}
+
+void check_relays() {
+  if (tempf > hi_temp) {
+    ac_relay = true;
+  } else {
+    ac_relay = false;
+  }
+  if (tempf < lo_temp) {
+    heat_relay = true;
+  } else {
+    heat_relay = false;
+  }
+  if (humi > hi_humi) {
+    dehumidifier_relay = true;
+  } else {
+    dehumidifier_relay = false;
+  }
+  if (humi < lo_humi) {
+    humidifier_relay = true;
+  } else {
+    humidifier_relay = false;
   }
 }
 
@@ -364,5 +549,6 @@ void loop() {
     read_DHT(); 
     startMillis2 = currentMillis;  //IMPORTANT to save the start time of the current LED state.
   }
+  check_relays();
   
 }
