@@ -135,10 +135,8 @@ void handleRoot() {
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
       <script>
         function submitMessage() { 
-          document.getElementById("successMessage").innerHTML = "Saved successfully!";
           updateData();
           setTimeout(function() {
-            document.getElementById("successMessage").innerHTML = "";
             toggleSettings();
           }, 2000); // <-- time in milliseconds
         }
@@ -315,24 +313,23 @@ void handleRoot() {
               <table style="width:100%;">
                 <tr>
                   <td>High Temp Setting</td>
-                  <td><input id="hi_temp" type="number" class="val_input" name="hi_temp" maxlength="3"></td>
+                  <td><input id="hi_temp" type="number" class="val_input" name="hi_temp" maxlength="3" min="0" max="120"></td>
                 </tr>
                 <tr>
                   <td>Low Temp Setting</td>
-                  <td><input id="lo_temp" type="number" class="val_input" name="lo_temp" maxlength="3"></td>
+                  <td><input id="lo_temp" type="number" class="val_input" name="lo_temp" maxlength="3" min="0" max="120"></td>
                 </tr>
                 <tr>
                   <td>High Humidity Setting</td>
-                  <td><input id="hi_humi" type="number" class="val_input" name="hi_humi" maxlength="3"></td>
+                  <td><input id="hi_humi" type="number" class="val_input" name="hi_humi" maxlength="3" min="0" max="100"></td>
                 </tr>
                 <tr>
                   <td>Low Humidity Setting</td> 
-                  <td><input id="lo_humi" type="number" class="val_input" name="lo_humi" maxlength="3"></td>
+                  <td><input id="lo_humi" type="number" class="val_input" name="lo_humi" maxlength="3" min="0" max="100"></td>
                 </tr>
               </table>
               <input type="submit" value="Submit" class="btn" onclick="submitMessage()">
               <button class="btn" style="display:none;" onclick="toggleSettings();">Close Settings</button>
-              <div id="successMessage" style="background-color: lightblue;">
               </div>
             </form>
             </div>
