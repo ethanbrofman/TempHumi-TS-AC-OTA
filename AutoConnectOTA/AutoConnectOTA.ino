@@ -270,6 +270,13 @@ void handleRoot() {
         margin: 10px 10px 10px 10px;
         color: gray;
       }
+      .header {
+        font-style: bold;
+        font-size: 16px;
+        margin: 10px 10px 10px 10px;
+        color: gray;
+      }
+
       h1 {
         font-size: 60px;
         margin: 10px 10px 10px 10px;
@@ -281,6 +288,9 @@ void handleRoot() {
     </head>
     <body>
       <div>
+        <div class="status-card">
+          <span class="header">&sdot; Shop Office Monitor &sdot;</span>
+        </div>
         <div class="status-card temphumi">
           <span class="details">Temperature</span>
           <h1><span id="current_temp"></span>&#8457;</h1>
